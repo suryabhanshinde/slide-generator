@@ -4,18 +4,21 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Instagram Slide Generator</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Mukta:wght@400;500;600;700&family=Yatra+One&display=swap" rel="stylesheet">
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Mukta', system-ui, -apple-system, sans-serif; }
     body { background: #f4f5f7; color: #333; padding: 40px 20px; display: flex; justify-content: center; }
     .container { width: 100%; max-width: 600px; display: flex; flex-direction: column; gap: 16px; }
-    h1 { font-size: 1.5rem; text-align: center; }
+    h1 { font-family: 'Yatra One', cursive; font-size: 1.8rem; text-align: center; }
     .control-group { display: flex; flex-direction: column; gap: 6px; }
     label { font-size: 0.85rem; font-weight: 600; color: #555; }
     input[type="file"], input[type="color"], select, textarea, button {
       width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 8px; font-size: 0.95rem; background: #fff;
     }
     input[type="color"] { height: 42px; padding: 4px; cursor: pointer; }
-    textarea { resize: vertical; min-height: 120px; }
+    textarea { resize: vertical; min-height: 130px; font-family: 'Mukta', sans-serif; }
     button { background: #111; color: #fff; border: none; cursor: pointer; font-weight: 600; padding: 12px; }
     button:hover { background: #333; }
     #output { display: flex; flex-direction: column; gap: 24px; margin-top: 20px; }
@@ -54,7 +57,7 @@
 
   <div class="control-group">
     <label for="slideText">Slide Content (separate slides with double newlines)</label>
-    <textarea id="slideText" placeholder="Headline for Slide 1&#10;This is the regular body text for the first slide.&#10;&#10;Headline for Slide 2&#10;Here is the body text for the second slide."></textarea>
+    <textarea id="slideText" placeholder="मुख्य शीर्षक यहाँ लिखें&#10;यहाँ आपका विवरण और मुख्य संदेश आएगा।&#10;&#10;दूसरा शीर्षक&#10;अगली स्लाइड की जानकारी यहाँ पेस्ट करें।"></textarea>
   </div>
 
   <button id="generateBtn">Generate Slides</button>
@@ -85,7 +88,7 @@
   });
 
   function wrapText(ctx, text, maxWidth) {
-    const words = text.split(' ');
+    const words = text.split(/\s+/);
     const lines = [];
     let currentLine = '';
 
@@ -121,9 +124,14 @@
     ctx.drawImage(img, offsetX, offsetY, renderWidth, renderHeight);
   }
 
-  generateBtn.addEventListener('click', () => {
+  generateBtn.addEventListener('click', async () => {
     const rawText = textInput.value.trim();
     if (!rawText) return alert('Please enter some text.');
+
+    // Ensure Google Fonts are loaded in the browser before rendering to Canvas
+    if (document.fonts) {
+      await document.fonts.ready;
+    }
 
     const [width, height] = sizeSelect.value.split('x').map(Number);
     output.innerHTML = '';
@@ -147,21 +155,20 @@
         ctx.fillRect(0, 0, width, height);
       }
 
-      // Configure text styles
-      const textColor = colorInput.value;
+      // Configure font sizes and line heights
       const maxWidth = width * 0.82;
-      const headlineSize = Math.max(32, Math.round(width * 0.058));
-      const bodySize = Math.max(20, Math.round(width * 0.038));
-      const headlineLineHeight = headlineSize * 1.35;
-      const bodyLineHeight = bodySize * 1.45;
-      const gap = headline && bodyLinesRaw.length ? headlineSize * 0.85 : 0;
+      const headlineSize = Math.max(34, Math.round(width * 0.065));
+      const bodySize = Math.max(22, Math.round(width * 0.040));
+      const headlineLineHeight = headlineSize * 1.4;
+      const bodyLineHeight = bodySize * 1.5;
+      const gap = headline && bodyLinesRaw.length ? headlineSize * 0.8 : 0;
 
-      // Wrap headline
-      ctx.font = `bold ${headlineSize}px system-ui, sans-serif`;
+      // Wrap headline using 'Yatra One' font
+      ctx.font = `${headlineSize}px 'Yatra One', cursive`;
       const wrappedHeadline = headline ? wrapText(ctx, headline, maxWidth) : [];
 
-      // Wrap body text
-      ctx.font = `${bodySize}px system-ui, sans-serif`;
+      // Wrap body using 'Mukta' font
+      ctx.font = `500 ${bodySize}px 'Mukta', sans-serif`;
       const wrappedBody = [];
       bodyLinesRaw.forEach(line => {
         wrappedBody.push(...wrapText(ctx, line, maxWidth));
@@ -169,32 +176,36 @@
 
       // Calculate total height for vertical centering
       const totalHeight = (wrappedHeadline.length * headlineLineHeight) + gap + (wrappedBody.length * bodyLineHeight);
-      let currentY = (height - totalHeight) / 2 + (headlineSize / 2);
+      let currentY = (height - totalHeight) / 2 + (headlineLineHeight / 2);
 
-      // Shadow & alignment settings
+      // Shared shadow, color, and center alignment
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillStyle = textColor;
+      ctx.fillStyle = colorInput.value;
       ctx.shadowColor = 'rgba(0, 0, 0, 0.85)';
       ctx.shadowBlur = Math.round(width * 0.015);
       ctx.shadowOffsetX = 2;
       ctx.shadowOffsetY = 3;
 
-      // Render headline
-      ctx.font = `bold ${headlineSize}px system-ui, sans-serif`;
-      wrappedHeadline.forEach(line => {
-        ctx.fillText(line, width / 2, currentY);
-        currentY += headlineLineHeight;
-      });
+      // 1. Render Headline with 'Yatra One'
+      if (wrappedHeadline.length > 0) {
+        ctx.font = `${headlineSize}px 'Yatra One', cursive`;
+        wrappedHeadline.forEach(line => {
+          ctx.fillText(line, width / 2, currentY);
+          currentY += headlineLineHeight;
+        });
+      }
 
       currentY += gap;
 
-      // Render body
-      ctx.font = `${bodySize}px system-ui, sans-serif`;
-      wrappedBody.forEach(line => {
-        ctx.fillText(line, width / 2, currentY);
-        currentY += bodyLineHeight;
-      });
+      // 2. Render Normal Text with 'Mukta'
+      if (wrappedBody.length > 0) {
+        ctx.font = `500 ${bodySize}px 'Mukta', sans-serif`;
+        wrappedBody.forEach(line => {
+          ctx.fillText(line, width / 2, currentY);
+          currentY += bodyLineHeight;
+        });
+      }
 
       // Build slide DOM card
       const dataUrl = canvas.toDataURL('image/png');
