@@ -3,30 +3,46 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Instagram Slide Generator</title>
+  <title>Slide Generator</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Mukta:wght@400;500;600;700&family=Yatra+One&display=swap" rel="stylesheet">
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Mukta', system-ui, -apple-system, sans-serif; }
     body { background: #f4f5f7; color: #333; padding: 40px 20px; display: flex; justify-content: center; }
-    .container { width: 100%; max-width: 600px; display: flex; flex-direction: column; gap: 16px; }
+    .container { width: 100%; max-width: 640px; display: flex; flex-direction: column; gap: 16px; }
     h1 { font-family: 'Yatra One', cursive; font-size: 1.8rem; text-align: center; }
     .control-group { display: flex; flex-direction: column; gap: 6px; }
     label { font-size: 0.85rem; font-weight: 600; color: #555; }
-    input[type="file"], input[type="color"], select, textarea, button {
+    input[type="file"], input[type="text"], textarea, button {
       width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 8px; font-size: 0.95rem; background: #fff;
     }
-    input[type="color"] { height: 42px; padding: 4px; cursor: pointer; }
+    .color-picker-row { display: flex; gap: 10px; align-items: center; }
+    input[type="color"] {
+      width: 60px; height: 44px; padding: 2px; border: 1px solid #ccc; border-radius: 8px; cursor: pointer; background: #fff;
+    }
     textarea { resize: vertical; min-height: 130px; font-family: 'Mukta', sans-serif; }
     button { background: #111; color: #fff; border: none; cursor: pointer; font-weight: 600; padding: 12px; }
     button:hover { background: #333; }
-    #output { display: flex; flex-direction: column; gap: 24px; margin-top: 20px; }
-    .slide-card { background: #fff; padding: 16px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); text-align: center; }
-    .slide-card img { width: 100%; height: auto; border-radius: 6px; display: block; margin-bottom: 12px; }
+    
+    #output { display: flex; flex-direction: column; gap: 28px; margin-top: 20px; }
+    .slide-card {
+      background: #fff; padding: 18px; border-radius: 12px; box-shadow: 0 4px 14px rgba(0,0,0,0.08);
+      display: flex; flex-direction: column; gap: 14px;
+    }
+    .slide-canvas {
+      width: 100%; height: auto; border-radius: 8px; display: block; background: #1e293b;
+    }
+    .slide-controls {
+      display: flex; flex-direction: column; gap: 12px; background: #f9fafb; padding: 14px; border-radius: 8px; border: 1px solid #eee;
+    }
+    .slider-row { display: flex; flex-direction: column; gap: 4px; }
+    .slider-header { display: flex; justify-content: space-between; font-size: 0.85rem; font-weight: 600; color: #555; }
+    .slider-header span { color: #2563eb; }
+    input[type="range"] { width: 100%; padding: 0; height: 6px; cursor: pointer; }
     .download-btn {
-      display: inline-block; padding: 8px 16px; background: #2563eb; color: #fff; text-decoration: none;
-      border-radius: 6px; font-size: 0.9rem; font-weight: 500;
+      display: block; text-align: center; padding: 10px; background: #2563eb; color: #fff; text-decoration: none;
+      border-radius: 6px; font-size: 0.95rem; font-weight: 600;
     }
     .download-btn:hover { background: #1d4ed8; }
   </style>
@@ -34,16 +50,7 @@
 <body>
 
 <div class="container">
-  <h1>Instagram Slide Generator</h1>
-
-  <div class="control-group">
-    <label for="sizePreset">Instagram Size Format</label>
-    <select id="sizePreset">
-      <option value="1080x1350" selected>Instagram Portrait / Carousel 4:5 (1080 x 1350)</option>
-      <option value="1080x1080">Instagram Square 1:1 (1080 x 1080)</option>
-      <option value="1080x1920">Instagram Story / Reel 9:16 (1080 x 1920)</option>
-    </select>
-  </div>
+  <h1>Slide Generator</h1>
 
   <div class="control-group">
     <label for="bgImage">Background Image</label>
@@ -51,8 +58,11 @@
   </div>
 
   <div class="control-group">
-    <label for="textColor">Text Color</label>
-    <input type="color" id="textColor" value="#ffffff">
+    <label>Text Color</label>
+    <div class="color-picker-row">
+      <input type="color" id="colorPicker" value="#ffffff">
+      <input type="text" id="hexInput" placeholder="#FFFFFF" value="#ffffff">
+    </div>
   </div>
 
   <div class="control-group">
@@ -66,15 +76,31 @@
 </div>
 
 <script>
-  const sizeSelect = document.getElementById('sizePreset');
   const bgInput = document.getElementById('bgImage');
-  const colorInput = document.getElementById('textColor');
+  const colorPicker = document.getElementById('colorPicker');
+  const hexInput = document.getElementById('hexInput');
   const textInput = document.getElementById('slideText');
   const generateBtn = document.getElementById('generateBtn');
   const output = document.getElementById('output');
 
   let bgImg = null;
 
+  // 1. Sync Color Picker and Hex Input (Universal for iOS/Android)
+  colorPicker.addEventListener('input', (e) => {
+    hexInput.value = e.target.value.toUpperCase();
+  });
+
+  hexInput.addEventListener('input', (e) => {
+    let val = e.target.value.trim();
+    if (!val.startsWith('#') && (val.length === 3 || val.length === 6)) {
+      val = '#' + val;
+    }
+    if (/^#[0-9A-Fa-f]{6}$/.test(val)) {
+      colorPicker.value = val;
+    }
+  });
+
+  // Background Image Upload
   bgInput.addEventListener('change', (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -87,6 +113,7 @@
     }
   });
 
+  // Dynamic Word Wrap
   function wrapText(ctx, text, maxWidth) {
     const words = text.split(/\s+/);
     const lines = [];
@@ -105,127 +132,217 @@
     return lines;
   }
 
-  function drawCoverImage(ctx, img, canvasWidth, canvasHeight) {
-    const imgRatio = img.naturalWidth / img.naturalHeight;
-    const canvasRatio = canvasWidth / canvasHeight;
-    let renderWidth, renderHeight, offsetX, offsetY;
+  // Draw a specific slide canvas given its individual parameters
+  function drawSingleSlide(canvas, headline, bodyLinesRaw, localHeadSize, localTextSize, localGapSize, activeColor, currentBgImg) {
+    const ctx = canvas.getContext('2d');
 
-    if (imgRatio > canvasRatio) {
-      renderHeight = canvasHeight;
-      renderWidth = canvasHeight * imgRatio;
-      offsetX = (canvasWidth - renderWidth) / 2;
-      offsetY = 0;
+    // 1. Explicit Natural Dimensions
+    if (currentBgImg && currentBgImg.naturalWidth && currentBgImg.naturalHeight) {
+      canvas.width = currentBgImg.naturalWidth;
+      canvas.height = currentBgImg.naturalHeight;
     } else {
-      renderWidth = canvasWidth;
-      renderHeight = canvasWidth / imgRatio;
-      offsetX = 0;
-      offsetY = (canvasHeight - renderHeight) / 2;
+      canvas.width = 1080;
+      canvas.height = 1350;
     }
-    ctx.drawImage(img, offsetX, offsetY, renderWidth, renderHeight);
+
+    const width = canvas.width;
+    const height = canvas.height;
+    const maxWidth = width * 0.82;
+
+    // Independent line heights and dynamic gap based on individual sizes
+    const headlineLineHeight = localHeadSize * 1.35;
+    const bodyLineHeight = localTextSize * 1.45;
+    const effectiveGap = (headline && bodyLinesRaw.length > 0) ? localGapSize : 0;
+
+    // Draw background
+    if (currentBgImg && currentBgImg.naturalWidth) {
+      ctx.drawImage(currentBgImg, 0, 0, width, height);
+    } else {
+      ctx.fillStyle = '#1e293b';
+      ctx.fillRect(0, 0, width, height);
+    }
+
+    // Strict Canvas alignment properties
+    ctx.direction = 'ltr';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    // 2. Measure & Wrap Headline with individual localHeadSize
+    ctx.font = `${localHeadSize}px "Yatra One", cursive`;
+    const wrappedHeadline = headline ? wrapText(ctx, headline, maxWidth) : [];
+
+    // 3. Measure & Wrap Normal Text with individual localTextSize
+    ctx.font = `500 ${localTextSize}px "Mukta", sans-serif`;
+    const wrappedBody = [];
+    bodyLinesRaw.forEach(line => {
+      wrappedBody.push(...wrapText(ctx, line, maxWidth));
+    });
+
+    // 4. Calculate vertical centering using overall height
+    const totalHeight = (wrappedHeadline.length * headlineLineHeight) + effectiveGap + (wrappedBody.length * bodyLineHeight);
+    let yPosition = (height / 2) - (totalHeight / 2) + (headlineLineHeight / 2);
+
+    // Shared shadow and color
+    ctx.fillStyle = activeColor;
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.85)';
+    ctx.shadowBlur = Math.round(width * 0.015);
+    ctx.shadowOffsetX = 2;
+    ctx.shadowOffsetY = 3;
+
+    // 5. Draw Headline
+    if (wrappedHeadline.length > 0) {
+      ctx.direction = 'ltr';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.font = `${localHeadSize}px "Yatra One", cursive`;
+
+      wrappedHeadline.forEach(line => {
+        ctx.fillText(line, canvas.width / 2, yPosition);
+        yPosition += headlineLineHeight;
+      });
+    }
+
+    // Dynamic Spacing Gap between Headline & Normal Text
+    if (wrappedHeadline.length > 0 && wrappedBody.length > 0) {
+      yPosition += effectiveGap - (headlineLineHeight / 2) + (bodyLineHeight / 2);
+    }
+
+    // 6. Draw Normal Text
+    if (wrappedBody.length > 0) {
+      ctx.direction = 'ltr';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.font = `500 ${localTextSize}px "Mukta", sans-serif`;
+
+      wrappedBody.forEach(line => {
+        ctx.fillText(line, canvas.width / 2, yPosition);
+        yPosition += bodyLineHeight;
+      });
+    }
   }
 
-  generateBtn.addEventListener('click', async () => {
+  // Generate All Slides with Individual Controls
+  function renderAllSlides() {
     const rawText = textInput.value.trim();
     if (!rawText) return alert('Please enter some text.');
 
-    // Ensure Google Fonts are loaded in the browser before rendering to Canvas
-    if (document.fonts) {
-      await document.fonts.ready;
-    }
-
-    const [width, height] = sizeSelect.value.split('x').map(Number);
     output.innerHTML = '';
     const paragraphs = rawText.split(/\n\s*\n/).map(p => p.trim()).filter(Boolean);
+    const activeColor = colorPicker.value;
+    const capturedBgImg = bgImg;
 
     paragraphs.forEach((para, index) => {
       const lines = para.split('\n').map(l => l.trim()).filter(Boolean);
       const headline = lines[0] || '';
       const bodyLinesRaw = lines.slice(1);
 
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
-      canvas.width = width;
-      canvas.height = height;
-
-      // Draw background (cover crop)
-      if (bgImg) {
-        drawCoverImage(ctx, bgImg, width, height);
-      } else {
-        ctx.fillStyle = '#1e293b';
-        ctx.fillRect(0, 0, width, height);
-      }
-
-      // Configure font sizes and line heights
-      const maxWidth = width * 0.82;
-      const headlineSize = Math.max(34, Math.round(width * 0.065));
-      const bodySize = Math.max(22, Math.round(width * 0.040));
-      const headlineLineHeight = headlineSize * 1.4;
-      const bodyLineHeight = bodySize * 1.5;
-      const gap = headline && bodyLinesRaw.length ? headlineSize * 0.8 : 0;
-
-      // Wrap headline using 'Yatra One' font
-      ctx.font = `${headlineSize}px 'Yatra One', cursive`;
-      const wrappedHeadline = headline ? wrapText(ctx, headline, maxWidth) : [];
-
-      // Wrap body using 'Mukta' font
-      ctx.font = `500 ${bodySize}px 'Mukta', sans-serif`;
-      const wrappedBody = [];
-      bodyLinesRaw.forEach(line => {
-        wrappedBody.push(...wrapText(ctx, line, maxWidth));
-      });
-
-      // Calculate total height for vertical centering
-      const totalHeight = (wrappedHeadline.length * headlineLineHeight) + gap + (wrappedBody.length * bodyLineHeight);
-      let currentY = (height - totalHeight) / 2 + (headlineLineHeight / 2);
-
-      // Shared shadow, color, and center alignment
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillStyle = colorInput.value;
-      ctx.shadowColor = 'rgba(0, 0, 0, 0.85)';
-      ctx.shadowBlur = Math.round(width * 0.015);
-      ctx.shadowOffsetX = 2;
-      ctx.shadowOffsetY = 3;
-
-      // 1. Render Headline with 'Yatra One'
-      if (wrappedHeadline.length > 0) {
-        ctx.font = `${headlineSize}px 'Yatra One', cursive`;
-        wrappedHeadline.forEach(line => {
-          ctx.fillText(line, width / 2, currentY);
-          currentY += headlineLineHeight;
-        });
-      }
-
-      currentY += gap;
-
-      // 2. Render Normal Text with 'Mukta'
-      if (wrappedBody.length > 0) {
-        ctx.font = `500 ${bodySize}px 'Mukta', sans-serif`;
-        wrappedBody.forEach(line => {
-          ctx.fillText(line, width / 2, currentY);
-          currentY += bodyLineHeight;
-        });
-      }
-
-      // Build slide DOM card
-      const dataUrl = canvas.toDataURL('image/png');
+      // Slide card DOM container
       const card = document.createElement('div');
       card.className = 'slide-card';
 
-      const img = document.createElement('img');
-      img.src = dataUrl;
-      img.alt = `Slide ${index + 1}`;
+      // Canvas element
+      const canvas = document.createElement('canvas');
+      canvas.className = 'slide-canvas';
 
+      // Controls container
+      const controlsDiv = document.createElement('div');
+      controlsDiv.className = 'slide-controls';
+
+      // 1. Headline Size Slider
+      const headRow = document.createElement('div');
+      headRow.className = 'slider-row';
+      headRow.innerHTML = `
+        <div class="slider-header">
+          <span>Headline Size</span>
+          <span class="val-display">80px</span>
+        </div>
+        <input type="range" class="headSize" min="30" max="150" value="80">
+      `;
+      const headSlider = headRow.querySelector('input');
+      const headValDisplay = headRow.querySelector('.val-display');
+
+      // 2. Normal Text Size Slider
+      const textRow = document.createElement('div');
+      textRow.className = 'slider-row';
+      textRow.innerHTML = `
+        <div class="slider-header">
+          <span>Normal Text Size</span>
+          <span class="val-display">50px</span>
+        </div>
+        <input type="range" class="textSize" min="20" max="100" value="50">
+      `;
+      const textSlider = textRow.querySelector('input');
+      const textValDisplay = textRow.querySelector('.val-display');
+
+      // 3. Spacing / Gap Size Slider
+      const gapRow = document.createElement('div');
+      gapRow.className = 'slider-row';
+      gapRow.innerHTML = `
+        <div class="slider-header">
+          <span>Spacing between Headline & Text</span>
+          <span class="val-display">50px</span>
+        </div>
+        <input type="range" class="gapSize" min="0" max="300" value="50">
+      `;
+      const gapSlider = gapRow.querySelector('input');
+      const gapValDisplay = gapRow.querySelector('.val-display');
+
+      // 4. Download Button
       const downloadBtn = document.createElement('a');
-      downloadBtn.href = dataUrl;
-      downloadBtn.download = `instagram-slide-${index + 1}.png`;
       downloadBtn.className = 'download-btn';
-      downloadBtn.textContent = `Download Slide ${index + 1} (${width}x${height})`;
+      downloadBtn.textContent = `Download Slide ${index + 1}`;
+      downloadBtn.download = `slide-${index + 1}.png`;
 
-      card.appendChild(img);
+      // Helper to redraw only this slide using current slider values
+      function updateThisSlide() {
+        const localHeadSize = parseInt(headSlider.value, 10);
+        const localTextSize = parseInt(textSlider.value, 10);
+        const localGapSize = parseInt(gapSlider.value, 10);
+
+        headValDisplay.textContent = `${localHeadSize}px`;
+        textValDisplay.textContent = `${localTextSize}px`;
+        gapValDisplay.textContent = `${localGapSize}px`;
+
+        drawSingleSlide(canvas, headline, bodyLinesRaw, localHeadSize, localTextSize, localGapSize, activeColor, capturedBgImg);
+        downloadBtn.href = canvas.toDataURL('image/png');
+      }
+
+      // Live Slider Events (Re-renders ONLY this specific slide)
+      headSlider.addEventListener('input', () => {
+        updateThisSlide();
+      });
+
+      textSlider.addEventListener('input', () => {
+        updateThisSlide();
+      });
+
+      gapSlider.addEventListener('input', () => {
+        updateThisSlide();
+      });
+
+      // Initial draw for this slide
+      updateThisSlide();
+
+      // Assemble card
+      controlsDiv.appendChild(headRow);
+      controlsDiv.appendChild(textRow);
+      controlsDiv.appendChild(gapRow);
+      card.appendChild(canvas);
+      card.appendChild(controlsDiv);
       card.appendChild(downloadBtn);
       output.appendChild(card);
     });
+  }
+
+  // Generate Button Click with Font Ready Promise for iOS Safari
+  generateBtn.addEventListener('click', () => {
+    if (document.fonts && document.fonts.ready) {
+      document.fonts.ready.then(() => {
+        renderAllSlides();
+      });
+    } else {
+      renderAllSlides();
+    }
   });
 </script>
 
